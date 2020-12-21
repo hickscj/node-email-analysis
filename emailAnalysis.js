@@ -68,4 +68,4 @@ const getEmail = (server, address) => {
 
 };
 
-getEmail("imap.mail.yahoo.com", "chadjhicks@yahoo.com");
+getEmail(process.env.SERV, process.env.ADDR);
