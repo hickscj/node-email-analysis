@@ -3,6 +3,25 @@ const Imap = require('imap');
 const dotenv = require('dotenv').config();
 const inspect = require('util').inspect;
 
+const handleMessage = (msg, seqno) => {
+    let prefix = '(#' + seqno + ') ';
+    msg.on('body', function(stream, info) {
+        let buffer = '';
+        stream.on('data', function(chunk) {
+            buffer += chunk.toString('utf8');
+        });
+        stream.once('end', function() {
+            console.log(prefix + 'Parsed header: %s', inspect(Imap.parseHeader(buffer)));
+        });
+    });
+    msg.once('attributes', function(attrs) {
+        console.log(prefix + 'Attributes: %s', inspect(attrs, false, 8));
+    });
+    msg.once('end', function() {
+        console.log(prefix + 'Finished');
+    });
+};
+
 const getEmail = (server, address) => {
     const imap = new Imap({
         user: process.env.ADDR,
@@ -26,25 +45,7 @@ const getEmail = (server, address) => {
                 bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
                 struct: true
             });
-            f.on('message', function(msg, seqno) {
-                console.log('Message #%d', seqno);
-                var prefix = '(#' + seqno + ') ';
-                msg.on('body', function(stream, info) {
-                    var buffer = '';
-                    stream.on('data', function(chunk) {
-                        buffer += chunk.toString('utf8');
-                    });
-                    stream.once('end', function() {
-                        console.log(prefix + 'Parsed header: %s', inspect(Imap.parseHeader(buffer)));
-                    });
-                });
-                msg.once('attributes', function(attrs) {
-                    console.log(prefix + 'Attributes: %s', inspect(attrs, false, 8));
-                });
-                msg.once('end', function() {
-                    console.log(prefix + 'Finished');
-                });
-            });
+            f.on('message', handleMessage);
             f.once('error', function(err) {
                 console.log('Fetch error: ' + err);
             });
