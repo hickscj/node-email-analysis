@@ -1,22 +1,29 @@
 /* email analysis! */
 const Imap = require('imap');
-const dotenv = require('dotenv').config();
+require('dotenv').config();
 const inspect = require('util').inspect;
+const fs = require('fs');
 
 const handleMessage = (msg, seqno) => {
     let prefix = '(#' + seqno + ') ';
     msg.on('body', function(stream, info) {
         let buffer = '';
         stream.on('data', function(chunk) {
-            buffer += chunk.toString('utf8');
+            let re = new RegExp(/&zwnj;/, 'gi');
+            chunk = chunk.toString('utf8').replace(re, '');
+            buffer += chunk;
         });
         stream.once('end', function() {
-            console.log(prefix + 'Parsed header: %s', inspect(Imap.parseHeader(buffer)));
+            // console.log(prefix + 'Parsed header: %s', inspect(Imap.parseHeader(buffer)));
+            fs.appendFile('newfile.txt', buffer, function(err) {
+                if(err) throw err;
+                console.log('saved');
+            })
         });
     });
-    msg.once('attributes', function(attrs) {
-        console.log(prefix + 'Attributes: %s', inspect(attrs, false, 8));
-    });
+    // msg.once('attributes', function(attrs) {
+    //     console.log(prefix + 'Attributes: %s', inspect(attrs, false, 8));
+    // });
     msg.once('end', function() {
         console.log(prefix + 'Finished');
     });
@@ -41,8 +48,8 @@ const getEmail = (server, address) => {
     imap.once('ready', function() {
         openInbox(function(err, box) {
             if (err) throw err;
-            var f = imap.seq.fetch('1:3', {
-                bodies: 'HEADER.FIELDS (FROM TO SUBJECT DATE)',
+            var f = imap.seq.fetch('1:1', {
+                bodies: ['HEADER.FIELDS (FROM TO SUBJECT DATE)', 'TEXT'],
                 struct: true
             });
             f.on('message', handleMessage);
@@ -69,3 +76,4 @@ const getEmail = (server, address) => {
 };
 
 getEmail(process.env.SERV, process.env.ADDR);
+
